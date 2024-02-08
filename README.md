@@ -1,7 +1,5 @@
 # Fish Eat Fish
 
-original game: https://poki.com/zh/g/fish-eat-fish
-
 ## Overview
 Fish Eat Fish is a single-player arcade-style game set in the vast ocean. Players start as the smallest fish in the sea, aiming to become the largest by consuming plankton and other smaller fish. With every bite, the player grows in size and gains points, allowing them to take on larger prey. The game challenges players with its simple yet strategic gameplay, requiring careful navigation of the ocean depths to avoid larger predators while seeking out the next meal.
 
@@ -34,6 +32,5 @@ Fish Eat Fish is a single-player arcade-style game set in the vast ocean. Player
 4. Run `python main.py` from your terminal or command prompt to start the game.
 
 ## Acknowledgements
-- Game concept and design by [Your Name].
-- Sprites and graphics sourced from [Source Names] (if applicable).
+- Original game: https://poki.com/zh/g/fish-eat-fish
 
