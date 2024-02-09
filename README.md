@@ -26,7 +26,7 @@ Fish Eat Fish is a single-player arcade-style game set in the vast ocean. Player
 - **Graphics:** Game sprites for player fish, enemy fish, and plankton. (Please credit any external sources for graphics used in the game.)
 
 ## How to Install and Run
-1. Ensure you have Python and Pygame installed on your machine.
+1. Ensure you have Python and have installed the required dependencies via `pip install -r requirements.txt`
 2. Download the game source code and assets.
 3. Extract the files to your preferred directory.
 4. Run `python main.py` from your terminal or command prompt to start the game.
