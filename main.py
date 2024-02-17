@@ -1,6 +1,7 @@
 import pygame
 import random
 import math
+import os
 
 # initialize Pygame
 pygame.init()
@@ -11,6 +12,10 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 
 # colors
 BACKGROUND_COLOR = (0, 105, 148)  # Ocean blue
+
+# backgound image
+background_image = pygame.image.load("./fish-eat-fish/bg.png").convert_alpha()
+background_image = pygame.transform.scale(background_image, (800, 600))
 
 # game settings
 FPS = 60
@@ -54,8 +59,12 @@ class PlayerFish(pygame.sprite.Sprite):
         self.point = 1
         self.level = 1
         self.points_to_next_level = 10
+        self.lives = 3
+        self.is_immune = False
+        self.immune_time = 0
+        self.flash_time = 0
 
-    def update(self, keys_pressed):
+    def update(self, keys_pressed, current_time):
         if keys_pressed[pygame.K_UP]:
             self.rect.y -= math.ceil(self.speed)
         if keys_pressed[pygame.K_DOWN]:
@@ -66,7 +75,11 @@ class PlayerFish(pygame.sprite.Sprite):
             self.rect.x += math.ceil(self.speed)
 
         # prevent player from leaving the screen
-        self.rect.clamp_ip(screen.get_rect())
+
+        allowable_area = screen.get_rect()
+        allowable_area.height -= 40
+        allowable_area.y += 40
+        self.rect.clamp_ip(allowable_area)
 
         if self.point >= self.points_to_next_level:
             self.level += 1
@@ -74,13 +87,30 @@ class PlayerFish(pygame.sprite.Sprite):
 
         base_width = 30
         base_height = 15
+        old_center = self.rect.center if hasattr(self, 'rect') else (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
         self.image = pygame.Surface((base_width + (self.level - 1) * 15, base_height + (self.level - 1) * 7.5))
         self.image.fill((0, 255, 0))
-        self.speed = 2 + self.level * 0.2
+        self.rect = self.image.get_rect()
+        self.rect.center = old_center
+        self.speed = 2 - self.level * 0.1
+
+        # update immunity and flashing
+        if self.is_immune:
+            if current_time - self.immune_time > 2000:
+                self.is_immune = False
+            else:
+                self.flash_time += 1
+                if self.flash_time % 10 in range(0, 5):
+                    self.image.set_alpha(100 if self.image.get_alpha() == 255 else 150)
+        else:
+            self.image.set_alpha(255)
 
 
-def spawn_enemy_fish(enemies):
-    point = random.randint(1, 10)  # random point value
+def spawn_enemy_fish(enemies, player):
+    points = [1, 2, 3, 4, 5, 6]
+    points.extend([player.level] * len(points))
+
+    point = random.choice(points)  # random point value
 
     # make speed inversely proportional to point
     speed = random.choice([-1, 1]) * math.ceil(2 / point)
@@ -91,21 +121,31 @@ def spawn_enemy_fish(enemies):
     enemies.add(enemy_fish)
 
 
-def check_collisions(player, enemies):
+def check_collisions(player, enemies, current_time):
     for enemy in enemies:
-        if pygame.sprite.collide_rect(player, enemy) and player.level >= enemy.point:
-            player.point += enemy.point
-            enemy.kill()
+        if pygame.sprite.collide_rect(player, enemy):
+            if player.level >= enemy.point:
+                player.point += enemy.point
+                enemy.kill()
+            elif not player.is_immune:
+                player.lives -= 1
+                player.is_immune = True
+                player.immune_time = current_time
+                player.flash_time = 0
+                if player.lives <= 0:
+                    print("Game Over")
+                    
+                    # add some game over action
 
 
-def draw_status_bar(player_points, player_level, progress, next_level_points):
+def draw_status_bar(player_points, player_level, progress, next_level_points, lives):
 
     # status Bar Background
     pygame.draw.rect(screen, (0, 77, 64), (0, 0, SCREEN_WIDTH, 40))
 
     # display Current Points
     font = pygame.font.SysFont(None, 30)
-    points_text = font.render(f'Points: {player_points}', True, (255, 255, 255))
+    points_text = font.render(f'Points: {player_points - 1}', True, (255, 255, 255))
     screen.blit(points_text, (10, 10))
 
     # display Current Level
@@ -113,11 +153,15 @@ def draw_status_bar(player_points, player_level, progress, next_level_points):
     screen.blit(level_text, (SCREEN_WIDTH - 150, 10))
 
     # progress Bar Background
-    pygame.draw.rect(screen, (255, 255, 255), (200, 10, 200, 20), 1)  # White border
+    pygame.draw.rect(screen, (255, 255, 255), (380, 10, 200, 20), 1)  # White border
 
     # progress Bar Fill
     fill_width = (progress / next_level_points) * 200
-    pygame.draw.rect(screen, (255, 165, 0), (200, 10, fill_width, 20))
+    pygame.draw.rect(screen, (255, 165, 0), (380, 10, fill_width, 20))
+
+    # Display Lives as Red Circles
+    for i in range(lives):
+        pygame.draw.circle(screen, (255, 0, 0), (180 + i * 30, 20), 10)
 
 
 def main():
@@ -129,6 +173,11 @@ def main():
     spawn_timer = ENEMY_SPAWN_RATE
 
     while running:
+        # draw background image
+        screen.blit(background_image, (0, 0))
+
+
+        current_time = pygame.time.get_ticks()
         keys_pressed = pygame.key.get_pressed()
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -137,21 +186,21 @@ def main():
         # spawn new enemy fish periodically
         spawn_timer -= 1
         if spawn_timer <= 0:
-            spawn_enemy_fish(enemy_fish)
+            spawn_enemy_fish(enemy_fish, player)
             spawn_timer = ENEMY_SPAWN_RATE
 
         # update enemy fish colors based on the player's size
         enemy_fish.update(player.level)
-        player_group.update(keys_pressed)
+        player_group.update(keys_pressed, current_time)
 
-        check_collisions(player, enemy_fish)
+        check_collisions(player, enemy_fish, current_time)
 
-        screen.fill(BACKGROUND_COLOR)
+        # screen.fill(BACKGROUND_COLOR)
         enemy_fish.draw(screen)
         player_group.draw(screen)
 
         # draw status and progress bars
-        draw_status_bar(player.point, player.level, player.point, player.points_to_next_level)
+        draw_status_bar(player.point, player.level, player.point, player.points_to_next_level, player.lives)
 
         pygame.display.flip()
         clock.tick(FPS)
