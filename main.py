@@ -14,7 +14,7 @@ screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
 BACKGROUND_COLOR = (0, 105, 148)  # Ocean blue
 
 # backgound image
-background_image = pygame.image.load("./fish-eat-fish/bg.png").convert_alpha()
+background_image = pygame.image.load("./bg.png").convert_alpha()
 background_image = pygame.transform.scale(background_image, (800, 600))
 
 # game settings
@@ -22,13 +22,21 @@ FPS = 60
 ENEMY_SPAWN_RATE = 90  # number of frames between each new enemy spawn
 
 
+
 class EnemyFish(pygame.sprite.Sprite):
     def __init__(self, point, speed, size):
         super().__init__()
-        self.image = pygame.Surface((size, size // 2))
+
+        self.image_sizes = [(20, 10), (15, 30), (40, 40), (50, 35), (90, 60), (160, 80) ]
+
+        self.image = pygame.image.load(f"./sprites/{str(point)}/image_1.png")
+        self.image = pygame.transform.scale(self.image, self.image_sizes[point - 1])
+
+
+        # self.image = pygame.Surface((size, size // 2))
         self.original_color = (255, 255, 255)  # original color
         self.eatable_color = (255, 0, 0)  # color for eatable fish
-        self.image.fill(self.original_color)
+        # self.image.fill(self.original_color)
         self.rect = self.image.get_rect()
         if speed > 0:
             self.rect.x = -self.rect.width
@@ -38,23 +46,49 @@ class EnemyFish(pygame.sprite.Sprite):
         self.point = point
         self.speed = speed
 
+        self.frame_delay = 20  # Number of updates to wait before changing frames
+        self.frame_delay_counter = 0  # Counter to keep track of updates
+        self.frame_index = 0
+
+        # self.frames = [pygame.image.load(f"./sprites/fish1/image_{str(i)}.png") for i in range(1, 7)]
+        frame_count = [4, 4, 6, 6, 4, 4]
+        self.frames = []
+        for i in range(frame_count[point - 1]):
+            img = pygame.image.load(f"./sprites/{str(point)}/image_{str(i)}.png")
+            img = pygame.transform.scale(img, self.image_sizes[point - 1])
+            self.frames.append(img)
+
     def update(self, player_level):
         self.rect.x += self.speed
-        if self.point <= player_level:
-            self.image.fill(self.eatable_color)
-        else:
-            self.image.fill(self.original_color)
+        # if self.point <= player_level:
+        #     self.image.fill(self.eatable_color)
+        # else:
+        #     self.image.fill(self.original_color)
+        self.animate_movement()
         # remove the sprite when it leaves the screen
         if self.rect.right < 0 or self.rect.left > SCREEN_WIDTH:
             self.kill()
+
+    def animate_movement(self):
+
+        self.frame_delay_counter += 1
+
+        if self.frame_delay_counter >= self.frame_delay:
+            self.frame_delay_counter = 0
+
+            self.frame_index = (self.frame_index + 1) % len(self.frames)
+            self.image = self.frames[self.frame_index]
+
+            if self.speed > 0:
+                self.image = pygame.transform.flip(self.image, True, False)
 
 
 class PlayerFish(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.image = pygame.Surface((30, 15))  # initial size
-        self.image.fill((0, 255, 0))
-        self.rect = self.image.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
+        # self.image = pygame.Surface((30, 15))  # initial size
+        # self.image.fill((0, 255, 0))
+
         self.speed = 2
         self.point = 1
         self.level = 1
@@ -63,17 +97,41 @@ class PlayerFish(pygame.sprite.Sprite):
         self.is_immune = False
         self.immune_time = 0
         self.flash_time = 0
+        self.facing_left = True
+
+        self.frame_delay = 10  # Number of updates to wait before changing frames
+        self.frame_delay_counter = 0  # Counter to keep track of updates
+
+        self.image = pygame.image.load("./sprites/player/player_1.png")
+        self.image = pygame.transform.scale(self.image, (45, 30))
+        # self.frames = [pygame.image.load(f"./sprites/fish/2/image_{str(i)}.png") for i in range(0, 6)]
+        self.frames = []
+        for i in range(6):
+            img = pygame.image.load(f"./sprites/player/player_{str(i)}.png")
+            img = pygame.transform.scale(img, (45, 30))
+            self.frames.append(img)
+        self.frame_index = 0
+        self.rect = self.image.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
 
     def update(self, keys_pressed, current_time):
+        moving = False
         if keys_pressed[pygame.K_UP]:
+            moving = True
             self.rect.y -= math.ceil(self.speed)
         if keys_pressed[pygame.K_DOWN]:
+            moving = True
             self.rect.y += math.ceil(self.speed)
         if keys_pressed[pygame.K_LEFT]:
+            moving = True
+            self.facing_left = True
             self.rect.x -= math.ceil(self.speed)
         if keys_pressed[pygame.K_RIGHT]:
+            moving = True
+            self.facing_left = False
             self.rect.x += math.ceil(self.speed)
 
+        if moving:
+            self.animate_movement()
         # prevent player from leaving the screen
 
         allowable_area = screen.get_rect()
@@ -88,8 +146,8 @@ class PlayerFish(pygame.sprite.Sprite):
         base_width = 30
         base_height = 15
         old_center = self.rect.center if hasattr(self, 'rect') else (SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2)
-        self.image = pygame.Surface((base_width + (self.level - 1) * 15, base_height + (self.level - 1) * 7.5))
-        self.image.fill((0, 255, 0))
+        # self.image = pygame.Surface((base_width + (self.level - 1) * 15, base_height + (self.level - 1) * 7.5))
+        # self.image.fill((0, 255, 0))
         self.rect = self.image.get_rect()
         self.rect.center = old_center
         self.speed = 2 - self.level * 0.1
@@ -105,6 +163,20 @@ class PlayerFish(pygame.sprite.Sprite):
         else:
             self.image.set_alpha(255)
 
+    def animate_movement(self):
+
+        self.frame_delay_counter += 1
+
+        if self.frame_delay_counter >= self.frame_delay:
+            self.frame_delay_counter = 0
+
+            self.frame_index = (self.frame_index + 1) % len(self.frames)
+            self.image = self.frames[self.frame_index]
+
+            if self.facing_left:
+                self.image = pygame.transform.flip(self.image, True, False)
+
+        # self.frame_index = (self.frame_index + 1) % len(self.frames)
 
 def spawn_enemy_fish(enemies, player):
     points = [1, 2, 3, 4, 5, 6]
