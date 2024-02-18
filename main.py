@@ -42,7 +42,7 @@ class EnemyFish(pygame.sprite.Sprite):
             self.rect.x = -self.rect.width
         else:
             self.rect.x = SCREEN_WIDTH
-        self.rect.y = random.randint(0, SCREEN_HEIGHT - self.rect.height)
+        self.rect.y = random.randint(0, SCREEN_HEIGHT - 80)
         self.point = point
         self.speed = speed
 
@@ -270,6 +270,11 @@ def main():
         # screen.fill(BACKGROUND_COLOR)
         enemy_fish.draw(screen)
         player_group.draw(screen)
+
+        # draw circle around eatable enemy
+        for enemy in enemy_fish:
+            if enemy.point <= player.level:
+                pygame.draw.circle(screen, (0, 255, 0), enemy.rect.center, max(enemy.rect.width, enemy.rect.height) // 2 + 5, 2)
 
         # draw status and progress bars
         draw_status_bar(player.point, player.level, player.point, player.points_to_next_level, player.lives)
