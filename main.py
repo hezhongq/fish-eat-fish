@@ -19,7 +19,11 @@ background_image = pygame.transform.scale(background_image, (800, 600))
 
 # game settings
 FPS = 60
+popup_color = (0, 0, 0, 128)
+PLAYER_SIZE = [(45, 30), (54, 36), (60, 40), (66, 44), (90, 60), (120, 90)]
 ENEMY_SPAWN_RATE = 90  # number of frames between each new enemy spawn
+ENEMY_FISH_SIZE = [(20, 10), (15, 30), (40, 40), (50, 35), (90, 60), (120, 60) ]
+ENEMY_FISH_SPEED = []
 
 
 
@@ -27,22 +31,16 @@ class EnemyFish(pygame.sprite.Sprite):
     def __init__(self, point, speed, size):
         super().__init__()
 
-        self.image_sizes = [(20, 10), (15, 30), (40, 40), (50, 35), (90, 60), (160, 80) ]
-
         self.image = pygame.image.load(f"./sprites/{str(point)}/image_1.png")
-        self.image = pygame.transform.scale(self.image, self.image_sizes[point - 1])
+        self.image = pygame.transform.scale(self.image, ENEMY_FISH_SIZE[point - 1])
 
-
-        # self.image = pygame.Surface((size, size // 2))
-        self.original_color = (255, 255, 255)  # original color
-        self.eatable_color = (255, 0, 0)  # color for eatable fish
-        # self.image.fill(self.original_color)
         self.rect = self.image.get_rect()
         if speed > 0:
             self.rect.x = -self.rect.width
         else:
             self.rect.x = SCREEN_WIDTH
-        self.rect.y = random.randint(0, SCREEN_HEIGHT - 80)
+        self.rect.y = random.randint(80, SCREEN_HEIGHT - 80)
+
         self.point = point
         self.speed = speed
 
@@ -55,15 +53,11 @@ class EnemyFish(pygame.sprite.Sprite):
         self.frames = []
         for i in range(frame_count[point - 1]):
             img = pygame.image.load(f"./sprites/{str(point)}/image_{str(i)}.png")
-            img = pygame.transform.scale(img, self.image_sizes[point - 1])
+            img = pygame.transform.scale(img, ENEMY_FISH_SIZE[point - 1])
             self.frames.append(img)
 
     def update(self, player_level):
         self.rect.x += self.speed
-        # if self.point <= player_level:
-        #     self.image.fill(self.eatable_color)
-        # else:
-        #     self.image.fill(self.original_color)
         self.animate_movement()
         # remove the sprite when it leaves the screen
         if self.rect.right < 0 or self.rect.left > SCREEN_WIDTH:
@@ -103,12 +97,12 @@ class PlayerFish(pygame.sprite.Sprite):
         self.frame_delay_counter = 0  # Counter to keep track of updates
 
         self.image = pygame.image.load("./sprites/player/player_1.png")
-        self.image = pygame.transform.scale(self.image, (45, 30))
+        self.image = pygame.transform.scale(self.image, PLAYER_SIZE[self.level - 1])
         # self.frames = [pygame.image.load(f"./sprites/fish/2/image_{str(i)}.png") for i in range(0, 6)]
         self.frames = []
         for i in range(6):
             img = pygame.image.load(f"./sprites/player/player_{str(i)}.png")
-            img = pygame.transform.scale(img, (45, 30))
+            img = pygame.transform.scale(img, PLAYER_SIZE[self.level - 1])
             self.frames.append(img)
         self.frame_index = 0
         self.rect = self.image.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2))
@@ -142,6 +136,12 @@ class PlayerFish(pygame.sprite.Sprite):
         if self.point >= self.points_to_next_level:
             self.level += 1
             self.points_to_next_level += 10 * self.level  # adjust level
+            new_frames = []
+            for i in range(6):
+                img = pygame.image.load(f"./sprites/player/player_{str(i)}.png")
+                img = pygame.transform.scale(img, PLAYER_SIZE[self.level - 1])
+                new_frames.append(img)
+                self.frames = new_frames
 
         base_width = 30
         base_height = 15
@@ -179,13 +179,13 @@ class PlayerFish(pygame.sprite.Sprite):
         # self.frame_index = (self.frame_index + 1) % len(self.frames)
 
 def spawn_enemy_fish(enemies, player):
-    points = [1, 2, 3, 4, 5, 6]
-    points.extend([player.level] * len(points))
+    points = [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5, 6]
+    points.extend([player.level] * 4)
 
     point = random.choice(points)  # random point value
 
     # make speed inversely proportional to point
-    speed = random.choice([-1, 1]) * math.ceil(2 / point)
+    speed = random.choice([-1, 1]) * 1
 
     # make size proportional to point
     size = point * 10
@@ -235,6 +235,37 @@ def draw_status_bar(player_points, player_level, progress, next_level_points, li
     for i in range(lives):
         pygame.draw.circle(screen, (255, 0, 0), (180 + i * 30, 20), 10)
 
+def show_instruction_screen(clock):
+    running = True
+    font = pygame.font.SysFont(None, 36)
+    instructions = font.render('Press any arrow key to start', True, (255, 255, 255))
+    instructions_rect = instructions.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20))
+    
+    rules_text = "Game Rules: Eat smaller fish to grow. Avoid larger fish."
+    rules = font.render(rules_text, True, (255, 255, 255))
+    rules_rect = rules.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 20))
+
+    popup_surface = pygame.Surface((SCREEN_WIDTH // 5 * 4, SCREEN_HEIGHT // 4 * 3), pygame.SRCALPHA)
+    popup_color = (0, 0, 0, 128)  # Semi-transparent black
+    popup_surface.fill(popup_color)
+
+    while running:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key in [pygame.K_LEFT, pygame.K_RIGHT, pygame.K_UP, pygame.K_DOWN]:
+                    running = False
+        
+        screen.blit(background_image, (0, 0))
+        screen.blit(popup_surface, (SCREEN_WIDTH // 8, SCREEN_HEIGHT // 6))
+        screen.blit(rules, rules_rect)
+        screen.blit(instructions, instructions_rect)
+        pygame.display.flip()
+        clock.tick(FPS)
+
+
 
 def main():
     clock = pygame.time.Clock()
@@ -243,7 +274,10 @@ def main():
     player = PlayerFish()
     player_group = pygame.sprite.GroupSingle(player)
     spawn_timer = ENEMY_SPAWN_RATE
+    running = True
 
+    show_instruction_screen(clock)
+    
     while running:
         # draw background image
         screen.blit(background_image, (0, 0))
